@@ -36,7 +36,11 @@ app.get("/user/:username", async (req, res) => {
   try {
   const username = req.params.username;
 
-  const browser = await puppeteer.launch({ headless: false });
+  const browser = await puppeteer.launch({
+  headless: true,
+  args: ["--no-sandbox", "--disable-setuid-sandbox"]
+});
+
   const page = await browser.newPage();
 
   const url = `https://codeforces.com/profile/${username}`;
