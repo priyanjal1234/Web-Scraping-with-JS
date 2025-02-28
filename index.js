@@ -34,51 +34,45 @@ async function retryOperation(operation, retries = 3, delay = 3000) {
 
 app.get("/user/:username", async (req, res) => {
   try {
-    const username = req.params.username;
+  const username = req.params.username;
 
-    const browser = await puppeteer.launch({ headless: false });
-    const page = await browser.newPage();
+  const browser = await puppeteer.launch({ headless: false });
+  const page = await browser.newPage();
 
-    const url = `https://codeforces.com/profile/${username}`;
-    await page.goto(url, { waitUntil: "networkidle2" });
+  const url = `https://codeforces.com/profile/${username}`;
+  await page.goto(url, { waitUntil: "networkidle2" });
+  await page.waitForSelector("rect.day");
 
-    // Wait for the rect.day elements to appear
-    await page.waitForSelector("rect.day");
+  const contributions = await page.evaluate(() => {
+    const rects = document.querySelectorAll("rect.day");
+    return Array.from(rects)
+      .filter(rect => {
+        const items = rect.getAttribute("data-items");
+        return items && Number(items) > 0;
+      })
+      .map(rect => ({
+        date: rect.getAttribute("data-date"),
+        items: rect.getAttribute("data-items"),
+      }));
+  });
 
-    const contributions = await page.evaluate(() => {
-      const rects = document.querySelectorAll("rect.day");
+  console.log(contributions);
+  await browser.close(); // Close the browser first
 
-      return (
-        Array.from(rects)
-          // Filter only the ones that have data-items (and optionally check > 0)
-          .filter((rect) => {
-            const items = rect.getAttribute("data-items");
-            return items && Number(items) > 0;
-          })
-          // Then map those filtered elements to the data we want
-          .map((rect) => ({
-            date: rect.getAttribute("data-date"),
-            items: rect.getAttribute("data-items"),
-          }))
-      );
-    });
+  return res.status(200).json({
+    contributions,
+    message: "User is done !",
+    success: true,
+  });
 
-    return res.status(200).json({
-      contributions,
-      message: "User is done !",
-      success: true,
-    });
+} catch (error) {
+  console.error(error);
+  return res.status(500).json({
+    message: "Internal Server Error",
+    success: false,
+  });
+}
 
-    console.log(contributions);
-
-    await browser.close();
-  } catch (error) {
-    console.log(error);
-    return res.status(500).json({
-      message: "Internal Server Error",
-      success: false,
-    });
-  }
 });
 
 // ✅ Start the server
